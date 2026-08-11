@@ -82,3 +82,17 @@ func handlerRegister(s *state, cmd command) error {
 	return nil
 }
 
+func handlerReset(s *state, cmd command) error {
+	if len(cmd.args) > 0 {
+		return errors.New("The reset command expects zero arguments")
+	}
+
+	err := s.db.ResetUsers(context.Background())
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Database has been reset")
+	return nil
+}
+
