@@ -1,14 +1,19 @@
 package main
 
+import _ "github.com/lib/pq"
+
 import(
 	"fmt"
 	"os"
+	"database/sql"
 
 	"github.com/F0hor/config"
+	"github.com/F0hor/database"
 )
 
 type state struct {
 	cfg *config.Config
+	db *database.Queries
 }
 
 func main() {
@@ -18,8 +23,15 @@ func main() {
 	}
 
 	conf := config.Read()
+	db, err := sql.Open("postgres", conf.DbUrl)
+	dbQueries := database.New(db)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 	myState := state{
 		cfg: &conf,
+		db: dbQueries,
 	}
 
 	cmds := commands{
@@ -32,7 +44,7 @@ func main() {
 		args: os.Args[2:],
 	}
 
-	err := cmds.run(&myState, cmd)
+	err = cmds.run(&myState, cmd)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -41,5 +53,5 @@ func main() {
 
 func initCmds(cmds *commands) {
 	cmds.register("login", handlerLogin)
+	cmds.register("register", handlerRegister)
 }
-
