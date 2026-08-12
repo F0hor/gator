@@ -96,3 +96,24 @@ func handlerReset(s *state, cmd command) error {
 	return nil
 }
 
+func handlerUsers(s *state, cmd command) error {
+	if len(cmd.args) > 0 {
+		return errors.New("The users command expects zero arguments")
+	}
+
+	users, err := s.db.GetUsers(context.Background())
+	if err != nil {
+		return err
+	}
+
+	for _, u := range users {
+		if u.Name == s.cfg.User {
+			fmt.Printf("* %v (current)\n", u.Name)
+		} else {
+			fmt.Printf("* %v\n", u.Name)
+		}
+	}
+
+	return nil
+}
+
