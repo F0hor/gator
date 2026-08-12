@@ -117,3 +117,18 @@ func handlerUsers(s *state, cmd command) error {
 	return nil
 }
 
+func handlerAggregation(s *state, cmd command) error {
+	if len(cmd.args) > 0 {
+		return errors.New("The users command expects zero arguments")
+	}
+
+	feed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(feed)
+
+	return nil
+}
+
