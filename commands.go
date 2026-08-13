@@ -132,3 +132,36 @@ func handlerAggregation(s *state, cmd command) error {
 	return nil
 }
 
+func handlerAddFeed(s *state, cmd command) error {
+	if len(cmd.args) != 2 {
+		return errors.New("The addfeed command expects two arguments")
+	}
+
+	ctx := context.Background()
+
+	user, err := s.db.GetUser(ctx, s.cfg.User)
+	if err != nil {
+		return errors.New("Failed to retieve current user from database")
+	}
+
+	tNow := time.Now()
+	feed, err := s.db.CreateFeed(
+		ctx,
+		database.CreateFeedParams{
+			ID: uuid.New(),
+			CreatedAt: tNow,
+			UpdatedAt: tNow,
+			Name: cmd.args[0],
+			Url: cmd.args[1],
+			UserID: user.ID,
+		},
+	)
+	if err != nil {
+		fmt.Errorf("Failed to create new feed. Reason:\n%v\n", err)
+	}
+
+	fmt.Println(feed)
+
+	return nil
+}
+
