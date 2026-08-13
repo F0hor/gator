@@ -165,3 +165,25 @@ func handlerAddFeed(s *state, cmd command) error {
 	return nil
 }
 
+func handlerFeeds(s *state, cmd command) error {
+	if len(cmd.args) > 0 {
+		return errors.New("The feeds command expects zero arguments")
+	}
+
+	feeds, err := s.db.GetFeeds(context.Background())
+	if err != nil {
+		return fmt.Errorf("Failed to retieve data from database:\n%v\n", err)
+	}
+
+	uName := ""
+	for _, f := range feeds {
+		if uName != f.UserName {
+			uName = f.UserName
+			fmt.Printf("%v:\n", uName)
+		}
+		fmt.Printf(" - %v -> %v\n", f.Name, f.Url)
+	}
+
+	return nil
+}
+
