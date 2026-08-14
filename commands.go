@@ -160,6 +160,20 @@ func handlerAddFeed(s *state, cmd command) error {
 		fmt.Errorf("Failed to create new feed. Reason:\n%v\n", err)
 	}
 
+	_, err = s.db.CreateFeedFollow(
+		ctx,
+		database.CreateFeedFollowParams{
+			FeedID: feed.ID,
+			UserID: user.ID,
+			ID: uuid.New(),
+			CreatedAt: tNow,
+			UpdatedAt: tNow,
+		},
+	)
+	if err != nil {
+		fmt.Errorf("Failed to follow new feed:\n%v\n", err)
+	}
+
 	fmt.Println(feed)
 
 	return nil
@@ -224,6 +238,28 @@ func handlerFollow(s *state, cmd command) error {
 	}
 
 	fmt.Printf("%v now follows %v", feedFollow.UserName, feedFollow.FeedName)
+	return nil
+}
+
+func handlerFollowing(s *state, cmd command) error {
+	if len(cmd.args) != 0 {
+		return errors.New("The following command expects zero argument")
+	}
+
+	follows, err := s.db.GetUserFollows(
+		context.Background(),
+		s.cfg.User,
+	)
+	if err != nil {
+		return fmt.Errorf("Failed to retieve data from database:\n%v\n", err)
+	}
+
+
+	fmt.Printf("%v is following these feeds:\n", s.cfg.User)
+	for _, f := range follows {
+		fmt.Printf("%v -> %v\n", f.Name_2, f.Url)
+	}
+
 	return nil
 }
 
