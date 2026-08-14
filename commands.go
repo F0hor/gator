@@ -134,7 +134,7 @@ func handlerAggregation(s *state, cmd command) error {
 
 func handlerAddFeed(s *state, cmd command) error {
 	if len(cmd.args) != 2 {
-		return errors.New("The addfeed command expects two arguments")
+		return errors.New("The addfeed command expects two arguments (feed name, feed URL)")
 	}
 
 	ctx := context.Background()
@@ -184,6 +184,46 @@ func handlerFeeds(s *state, cmd command) error {
 		fmt.Printf(" - %v -> %v\n", f.Name, f.Url)
 	}
 
+	return nil
+}
+
+func handlerFollow(s *state, cmd command) error {
+	if len(cmd.args) != 1 {
+		return errors.New("The follow command expects one argument (feed URL)")
+	}
+
+	user, err := s.db.GetUser(
+		context.Background(),
+		s.cfg.User,
+	)
+	if err != nil {
+		return fmt.Errorf("Failed to retieve nessery data:\n%v\n", err)
+	}
+
+	feed, err := s.db.GetFeed(
+		context.Background(),
+		cmd.args[0],
+	)
+	if err != nil {
+		return fmt.Errorf("Failed to retieve nessery data:\n%v\n", err)
+	}
+
+	tNow := time.Now()
+	feedFollow, err := s.db.CreateFeedFollow(
+		context.Background(),
+		database.CreateFeedFollowParams{
+			FeedID: feed.ID,
+			UserID: user.ID,
+			ID: uuid.New(),
+			CreatedAt: tNow,
+			UpdatedAt: tNow,
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("Failed to add follow to database:\n%v\n", err)
+	}
+
+	fmt.Printf("%v now follows %v", feedFollow.UserName, feedFollow.FeedName)
 	return nil
 }
 

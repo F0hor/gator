@@ -17,3 +17,6 @@ INNER JOIN users AS u
   ON f.user_id = u.id
 ORDER BY user_name;
 
+-- name: GetFeed :one
+SELECT * FROM feeds
+WHERE url = $1;
