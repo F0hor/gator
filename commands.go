@@ -132,17 +132,12 @@ func handlerAggregation(s *state, cmd command) error {
 	return nil
 }
 
-func handlerAddFeed(s *state, cmd command) error {
+func handlerAddFeed(s *state, cmd command, user database.User) error {
 	if len(cmd.args) != 2 {
 		return errors.New("The addfeed command expects two arguments (feed name, feed URL)")
 	}
 
 	ctx := context.Background()
-
-	user, err := s.db.GetUser(ctx, s.cfg.User)
-	if err != nil {
-		return errors.New("Failed to retieve current user from database")
-	}
 
 	tNow := time.Now()
 	feed, err := s.db.CreateFeed(
@@ -201,17 +196,9 @@ func handlerFeeds(s *state, cmd command) error {
 	return nil
 }
 
-func handlerFollow(s *state, cmd command) error {
+func handlerFollow(s *state, cmd command, user database.User) error {
 	if len(cmd.args) != 1 {
 		return errors.New("The follow command expects one argument (feed URL)")
-	}
-
-	user, err := s.db.GetUser(
-		context.Background(),
-		s.cfg.User,
-	)
-	if err != nil {
-		return fmt.Errorf("Failed to retieve nessery data:\n%v\n", err)
 	}
 
 	feed, err := s.db.GetFeed(
@@ -261,5 +248,34 @@ func handlerFollowing(s *state, cmd command) error {
 	}
 
 	return nil
+}
+
+func handlerUnfollow(s *state, cmd command) error {
+	if len(cmd.args) != 1 {
+		return errors.New("The unfollow command expects one argument (url)")
+	}
+	
+	follows, err := s.db.GetUserFollows(
+		context.Background(),
+		s.cfg.User,
+	)
+	if err != nil {
+		return fmt.Errorf("Failed to retieve data from database:\n%v\n", err)
+	}
+
+	for _, f := range follows {
+		if f.Url != cmd.args[0] {
+			continue
+		}
+
+		err = s.db.DeleteFeedFollow(context.Background(), f.ID)
+		if err != nil {
+			return fmt.Errorf("Failed to delete data from database:\n%v\n", err)
+		}
+
+		return nil
+	}
+
+	return fmt.Errorf("Current user does not follow this feed: %v", cmd.args[0])
 }
 
