@@ -9,6 +9,9 @@ import(
 	"html"
 	"net/http"
 	"encoding/xml"
+	"database/sql"
+
+	"github.com/google/uuid"
 
 	"github.com/F0hor/database"
 )
@@ -18,7 +21,7 @@ type RSSFeed struct {
 		Title       string    `xml:"title"`
 		Link        string    `xml:"link"`
 		Description string    `xml:"description"`
-		Items        []RSSItem `xml:"items"`
+		Items        []RSSItem `xml:"item"`
 	} `xml:"channel"`
 }
 
@@ -53,44 +56,48 @@ func scrapeFeeds(s *state) (error) {
 		return fmt.Errorf("Something went wrong with feed request:\n%v\n", err)
 	}
 
-	fmt.Println(rss)
-
-	fmt.Printf("\nRSS Feed from %v (%v):\n    %v\n\n", rss.Channel.Title, rss.Channel.Link, rss.Channel.Description)
+	fmt.Printf("RSS Feed from %v (%v):\n\n", rss.Channel.Title, rss.Channel.Link)
 	for _, i := range rss.Channel.Items {
-		fmt.Printf(" - %v (%v at %v)\n    %v\n", i.Title, i.PubDate, i.Link, i.Description)
+		fmt.Printf(" - %v (%v at %v)\n", i.Title, i.PubDate, i.Link)
+
+		var pubAt sql.NullTime
+		pub, err := time.Parse(time.RFC1123Z, i.PubDate)
+		if err != nil {
+			pubAt.Valid = false
+		} else {
+			pubAt.Time = pub
+			pubAt.Valid = true
+		}
+
+		var desc sql.NullString
+		if len(i.Description) == 0 {
+			desc.Valid = false
+		} else {
+			desc.String = i.Description
+		}
+
+		_, err = s.db.CreatePost(
+			ctx,
+			database.CreatePostParams{
+				ID: uuid.New(),
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				Title: i.Title,
+				Url: i.Link,
+				Description: desc,
+				PublishedAt: pubAt,
+				FeedID: feed.ID,
+			},
+		)
+		if err != nil {
+			fmt.Errorf("Failed to insert post into database:\n%v\n", err)
+		}
 	}
 
 	return nil
 }
 
-func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
-	data, err := getRawData(ctx, feedURL)
-	if err != nil {
-		return nil, err
-	}
-
-	var feed RSSFeed
-	err = xml.Unmarshal(data, &feed)
-	if err != nil {
-		return nil, errors.New("Failed to decode the data")
-	}
-
-	unescapeAll(&feed)
-
-	return &feed, nil
-}
-
-func unescapeAll(feed *RSSFeed) {
-	feed.Channel.Title = html.UnescapeString(feed.Channel.Title)
-	feed.Channel.Description = html.UnescapeString(feed.Channel.Description)
-
-	for _, i := range feed.Channel.Items {
-		i.Title = html.UnescapeString(i.Title)
-		i.Description = html.UnescapeString(i.Description)
-	}
-}
-
-func getRawData(ctx context.Context, url string) ([]byte, error) {
+func fetchFeed(ctx context.Context, url string) (*RSSFeed, error) {
 	client := &http.Client{
 		Timeout: time.Second * 10,
 	}
@@ -113,6 +120,24 @@ func getRawData(ctx context.Context, url string) ([]byte, error) {
 		return nil, fmt.Errorf("Failed to read response body:\n%v\n", err)
 	}
 
-	return data, nil
+	var feed RSSFeed
+	err = xml.Unmarshal(data, &feed)
+	if err != nil {
+		return nil, errors.New("Failed to decode the data")
+	}
+
+	unescapeAll(&feed)
+	
+	return &feed, nil
+}
+
+func unescapeAll(feed *RSSFeed) {
+	feed.Channel.Title = html.UnescapeString(feed.Channel.Title)
+	feed.Channel.Description = html.UnescapeString(feed.Channel.Description)
+
+	for _, i := range feed.Channel.Items {
+		i.Title = html.UnescapeString(i.Title)
+		i.Description = html.UnescapeString(i.Description)
+	}
 }
 

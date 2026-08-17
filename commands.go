@@ -5,6 +5,7 @@ import(
 	"errors"
 	"time"
 	"context"
+	"strconv"
 
 	"github.com/google/uuid"
 
@@ -283,6 +284,44 @@ func handlerUnfollow(s *state, cmd command) error {
 		return nil
 	}
 
-	return fmt.Errorf("Current user does not follow this feed: %v", cmd.args[0])
+	return fmt.Errorf("Current user does not follow this feed: %v\n", cmd.args[0])
+}
+
+func handlerBrowse(s *state, cmd command, user database.User) error {
+	if len(cmd.args) > 1 {
+		return errors.New("The browse command expects one optional argument (amount)")
+	}
+
+	limit := 2
+	var err error
+	if len(cmd.args) > 0 {
+		limit, err = strconv.Atoi(cmd.args[0])
+		if err != nil {
+			return errors.New("Failed to convert argument to int")
+		}
+	}
+	
+	posts, err := s.db.GetPostsByUser(
+		context.Background(),
+		database.GetPostsByUserParams{
+			UserID: user.ID,
+			Limit: int32(limit),
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("Failed to retrieve posts:\n%v\n", err)
+	}
+
+	for _, p := range posts {
+		fmt.Printf(
+			" - %v\n  %v %v\n%v\n\n", 
+			p.Title, 
+			p.PublishedAt.Time.Format(time.RFC1123Z), 
+			p.Url, 
+			p.Description.String,
+		)
+	}
+
+	return nil
 }
 
