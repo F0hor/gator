@@ -9,6 +9,8 @@ import(
 	"html"
 	"net/http"
 	"encoding/xml"
+
+	"github.com/F0hor/database"
 )
 
 type RSSFeed struct {
@@ -16,7 +18,7 @@ type RSSFeed struct {
 		Title       string    `xml:"title"`
 		Link        string    `xml:"link"`
 		Description string    `xml:"description"`
-		Item        []RSSItem `xml:"item"`
+		Items        []RSSItem `xml:"items"`
 	} `xml:"channel"`
 }
 
@@ -25,6 +27,40 @@ type RSSItem struct {
 	Link        string `xml:"link"`
 	Description string `xml:"description"`
 	PubDate     string `xml:"pubDate"`
+}
+
+func scrapeFeeds(s *state) (error) {
+	ctx := context.Background()
+
+	feed, err := s.db.GetNextFeedToFetch(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed to retrieve data from database:\n%v\n", err)
+	}
+
+	err = s.db.MarkFeedFetched(
+		ctx,
+		database.MarkFeedFetchedParams{
+			ID: feed.ID,
+			UpdatedAt: time.Now(),
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("Failed to update fetch time:\n%v\n", err)
+	}
+
+	rss, err := fetchFeed(ctx, feed.Url)
+	if err != nil {
+		return fmt.Errorf("Something went wrong with feed request:\n%v\n", err)
+	}
+
+	fmt.Println(rss)
+
+	fmt.Printf("\nRSS Feed from %v (%v):\n    %v\n\n", rss.Channel.Title, rss.Channel.Link, rss.Channel.Description)
+	for _, i := range rss.Channel.Items {
+		fmt.Printf(" - %v (%v at %v)\n    %v\n", i.Title, i.PubDate, i.Link, i.Description)
+	}
+
+	return nil
 }
 
 func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
@@ -48,7 +84,7 @@ func unescapeAll(feed *RSSFeed) {
 	feed.Channel.Title = html.UnescapeString(feed.Channel.Title)
 	feed.Channel.Description = html.UnescapeString(feed.Channel.Description)
 
-	for _, i := range feed.Channel.Item {
+	for _, i := range feed.Channel.Items {
 		i.Title = html.UnescapeString(i.Title)
 		i.Description = html.UnescapeString(i.Description)
 	}
@@ -74,7 +110,7 @@ func getRawData(ctx context.Context, url string) ([]byte, error) {
 
 	data, err := io.ReadAll(res.Body)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read response bofy:\n%v\n", err)
+		return nil, fmt.Errorf("Failed to read response body:\n%v\n", err)
 	}
 
 	return data, nil

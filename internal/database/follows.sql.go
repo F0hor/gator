@@ -7,6 +7,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -85,7 +86,7 @@ func (q *Queries) DeleteFeedFollow(ctx context.Context, id uuid.UUID) error {
 }
 
 const getUserFollows = `-- name: GetUserFollows :many
-SELECT follow.id, follow.created_at, follow.updated_at, follow.user_id, feed_id, u.id, u.created_at, u.updated_at, u.name, f.id, f.created_at, f.updated_at, f.name, url, f.user_id FROM feed_follows AS follow
+SELECT follow.id, follow.created_at, follow.updated_at, follow.user_id, feed_id, u.id, u.created_at, u.updated_at, u.name, f.id, f.created_at, f.updated_at, f.name, url, f.user_id, last_feched_at FROM feed_follows AS follow
 INNER JOIN users AS u
   ON follow.user_id = u.id
 INNER JOIN feeds AS f
@@ -94,21 +95,22 @@ WHERE u.name = $1
 `
 
 type GetUserFollowsRow struct {
-	ID          uuid.UUID
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	UserID      uuid.UUID
-	FeedID      uuid.UUID
-	ID_2        uuid.UUID
-	CreatedAt_2 time.Time
-	UpdatedAt_2 time.Time
-	Name        string
-	ID_3        uuid.UUID
-	CreatedAt_3 time.Time
-	UpdatedAt_3 time.Time
-	Name_2      string
-	Url         string
-	UserID_2    uuid.UUID
+	ID           uuid.UUID
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	UserID       uuid.UUID
+	FeedID       uuid.UUID
+	ID_2         uuid.UUID
+	CreatedAt_2  time.Time
+	UpdatedAt_2  time.Time
+	Name         string
+	ID_3         uuid.UUID
+	CreatedAt_3  time.Time
+	UpdatedAt_3  time.Time
+	Name_2       string
+	Url          string
+	UserID_2     uuid.UUID
+	LastFechedAt sql.NullTime
 }
 
 func (q *Queries) GetUserFollows(ctx context.Context, name string) ([]GetUserFollowsRow, error) {
@@ -136,6 +138,7 @@ func (q *Queries) GetUserFollows(ctx context.Context, name string) ([]GetUserFol
 			&i.Name_2,
 			&i.Url,
 			&i.UserID_2,
+			&i.LastFechedAt,
 		); err != nil {
 			return nil, err
 		}

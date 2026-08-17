@@ -118,17 +118,24 @@ func handlerUsers(s *state, cmd command) error {
 }
 
 func handlerAggregation(s *state, cmd command) error {
-	if len(cmd.args) > 0 {
-		return errors.New("The users command expects zero arguments")
+	if len(cmd.args) != 1 {
+		return errors.New("The aggregation command expects one argument (time between requests)")
 	}
 
-	feed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
+	timeBetweenRequests, err := time.ParseDuration(cmd.args[0])
 	if err != nil {
-		return err
+		return fmt.Errorf("Provided argumet is not a valid time: %v", cmd.args[0])
 	}
 
-	fmt.Println(feed)
-
+	ticker := time.NewTicker(timeBetweenRequests)
+	fmt.Printf("Collecting feeds every %v\n", timeBetweenRequests)
+	for ; ; <-ticker.C {
+		err := scrapeFeeds(s)
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+	
 	return nil
 }
 
